@@ -1,0 +1,14 @@
+{
+	"id" : "neufbox",
+	"name" : "Neufbox",
+	"description" : "Plugin pour piloter une neufbox",
+	"licence" : "AGPL",
+	"author" : "Romain OLLIER/Minscof",
+	"require" : "3.0",
+	"icon" : "fa fa-eye",
+	"installation":"Python3.",
+	"hasDependency":"1",
+	"category" : "communication",
+	"changelog" : "https://github.com/minscof/plugin-neufbox/blob/stable/doc/#language#/changelog.asciidoc",
+	"documentation" : "https://github.com/minscof/plugin-neufbox/blob/stable/doc/#language#/index.asciidoc"
+}

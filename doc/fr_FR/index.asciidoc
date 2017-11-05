@@ -1,0 +1,21 @@
+:icons:
+= Présence NB6
+
+== Description
+Plugin permettant de suivre la présence des équipement/personnes connectés sur votre Neufbox SFR
+
+'''
+== Introduction
+include::introduction.asciidoc[]
+
+'''
+== Installation et Configuration
+include::installation.asciidoc[]
+
+'''
+== Dashboard
+include::dashboard.asciidoc[]
+
+'''
+== FAQ
+include::faq.asciidoc[]

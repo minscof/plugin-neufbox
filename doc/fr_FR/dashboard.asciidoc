@@ -1,0 +1,6 @@
+image:../images/dashboard.jpg[]
+
+- Nom: Il s'agit du nom que vous avez configuré pour cet hôte. L'icône représente le type de connection wifi/filaire
+- Status: La première icône indique si l'hôte est connecté, la seconde s'il est considéré actif ou inactif
+- Offline/Online: cf chapitre précédent. Si un hôte est actif la valeur "Offline" sera grisée, s'il est inactif ce sera la valeur Online. Si vous avez coché "keepalive timer" dans la configuration de l'équipement, le timer sera visible à côté de la valeur Online + 
+Sur le screenshot ci-dessus on peut voir que Cassandre n'est pas connecté actuellement mais qu'elle est toujours active car sa dernière activité remonte à 1 minute

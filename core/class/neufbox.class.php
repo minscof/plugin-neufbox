@@ -350,10 +350,14 @@ class neufbox extends eqLogic
                 continue;
             }
             $mac = $eqLogic->getConfiguration('mac');
-            $a=print_r($parsed_json->{$mac},true);
-            //log::add('neufbox','debug','refresh equip :'.$a);
+            if (!isset($parsed_json->{$mac})) continue;
+            /*$a=print_r($parsed_json->{$mac},true);
+            log::add('neufbox','debug','refresh equip :'.$mac.' - value='.$a);
+            if ($a =="") continue;
+            */
+            //equipment not connexted => continue
             foreach ($eqLogic->getCmd('info') as $cmd) {
-                //log::add('neufbox','debug','refresh cmd:'.$cmd->getLogicalId());
+                //log::add('neufbox','debug','refresh cmd:'.$cmd->getLogicalId().' - mac ='.$mac);
                 $val = $parsed_json->{$mac}->{$cmd->getLogicalId()};
                 if ($cmd->getValue() != $val) {
                     $cmd->setValue($val);
@@ -657,7 +661,7 @@ class neufboxCmd extends cmd
             // strftime("jourEnLettres jour moisEnLettres annee") de la date courante
             log::add('neufbox','debug','Date du jour : ', strftime("%A %d %B %Y"));
             */
-            foreach ($rsp->{calls}->children() as $call) {
+            foreach ($rsp->{'calls'}->children() as $call) {
                 //log::add('neufbox','debug','appel = '.$call['direction'].' - '.$call['number'].' - '.$call['length'].' - '.date("D j M h:i:s",(int)$call['date']));
                 if ($call['direction'] == 'incoming') {
                     $incomingCalls[] = array('number'=> $call['number'],'length'=>$call['length'],'date'=>(int)$call['date']);

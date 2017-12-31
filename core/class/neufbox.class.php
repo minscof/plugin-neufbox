@@ -31,6 +31,7 @@ class neufbox extends eqLogic
     /* * ***********************Methode static*************************** */
     public static function cron()
     {
+        log::add('neufbox', 'info', __('Cron neufbox calles ', __FILE__) );
         foreach (eqLogic::byType('neufbox') as $eqLogic) {
             $autorefresh = $eqLogic->getConfiguration('autorefresh');
             if ($eqLogic->getIsEnable() == 1 && $autorefresh != '') {
@@ -73,7 +74,7 @@ class neufbox extends eqLogic
 
     public static function start()
     {
-        self::cron15();
+        self::cron();
     }
     
     public static function removeAll()
@@ -661,6 +662,8 @@ class neufboxCmd extends cmd
             // strftime("jourEnLettres jour moisEnLettres annee") de la date courante
             log::add('neufbox','debug','Date du jour : ', strftime("%A %d %B %Y"));
             */
+            $incomingCalls = array();
+            $outgoingCalls = array();
             foreach ($rsp->{'calls'}->children() as $call) {
                 //log::add('neufbox','debug','appel = '.$call['direction'].' - '.$call['number'].' - '.$call['length'].' - '.date("D j M h:i:s",(int)$call['date']));
                 if ($call['direction'] == 'incoming') {
@@ -676,6 +679,7 @@ class neufboxCmd extends cmd
             $value = "";
             
             $lastDate = 0;
+            $lastCall = '';
             foreach ($incomingCalls as $call) {
                 $line = $call['number'].' : '.$call['length'].'s le '.date("D j M H:i:s",$call['date']);
                 if ($lastDate < $call['date']) {

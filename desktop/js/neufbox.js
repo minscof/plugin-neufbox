@@ -87,7 +87,7 @@ function addCmdToTable(_cmd) {
     if (init(_cmd.logicalId) == 'refresh') {
        //return;
     }
-
+    
       var tr = '<tr class="cmd" data-cmd_id="' + init(_cmd.id) + '">';
       tr += '<td>';
       tr += '<span class="cmdAttr" data-l1key="id" ></span>';
@@ -97,15 +97,22 @@ function addCmdToTable(_cmd) {
       tr += '<span class="cmdAttr form-control input-sm" data-l1key="name" ></span>';
       tr += '<span class="cmdAttr form-control input-sm" data-l1key="subType" style="display : none;">';
       tr += '</td>';
-
       tr += '<td>';
-      tr += '<span><input type="checkbox" class="cmdAttr" data-l1key="isHistorized"  data-size="mini" data-label-text="{{Historiser}}" />{{Historiser}}</span> ';
+      tr += '<input class="cmdAttr form-control type input-sm" data-l1key="type" value="info" disabled style="margin-bottom : 5px;" />';
+	  tr += '<span class="subType" subType="' + init(_cmd.subType) + '"></span>';
+	  tr += '</td>';
+      tr += '<td>';
+      tr += '<span><label class="checkbox-inline"><input type="checkbox" class="cmdAttr checkbox-inline" data-l1key="isVisible" checked/>{{Afficher}}</label></span> ';
+  	  if (init(_cmd.type) == 'info') {
+	  	tr += '<span><label class="checkbox-inline"><input type="checkbox" class="cmdAttr checkbox-inline" data-l1key="isHistorized" checked/>{{Historiser}}</label></span> ';
+      };
       tr += '</td>';
       tr += '<td>';
       if (is_numeric(_cmd.id)) {
           tr += '<a class="btn btn-default btn-xs cmdAction expertModeVisible" data-action="configure"><i class="fa fa-cogs"></i></a> ';
           tr += '<a class="btn btn-default btn-xs cmdAction" data-action="test"><i class="fa fa-rss"></i> {{Tester}}</a>';
-      }
+      };
+      tr += '<i class="fa fa-minus-circle pull-right cmdAction cursor" data-action="remove"></i>';
       tr += '</td>';
       tr += '</tr>';
       $('#table_info tbody').append(tr);

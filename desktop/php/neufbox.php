@@ -217,10 +217,11 @@ if (empty($eqLogics)) {
 				<table id="table_info" class="table table-bordered table-condensed">
 					<thead>
 						<tr>
-							<th style="width: 50px;">{{ID}}</th>
+							<th style="width: 50px;">#</th>
 							<th style="width: 200px;">{{Nom}}</th>
-							<th style="width: 200px;">{{Paramètres}}</th>
-							<th style="width: 150px;"></th>
+							<th style="width: 110px;">{{Type}}</th>
+                            <th style="width: 200px;">{{Paramètres}}</th>
+							<th style="width: 100px;"></th>
 						</tr>
 					</thead>
 					<tbody>

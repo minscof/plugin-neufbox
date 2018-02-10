@@ -29,26 +29,28 @@ class neufbox extends eqLogic
     );
 
     /* * ***********************Methode static*************************** */
-    public static function cron()
+    public static function cron5()
     {
-        log::add('neufbox', 'info', __('Cron neufbox calles ', __FILE__) );
+        log::add('neufbox', 'debug', __('Cron neufbox start ', __FILE__));
         foreach (eqLogic::byType('neufbox') as $eqLogic) {
-            $autorefresh = $eqLogic->getConfiguration('autorefresh');
+            //$autorefresh = $eqLogic->getConfiguration('autorefresh');
+            $autorefresh = true;
             if ($eqLogic->getIsEnable() == 1 && $autorefresh != '') {
                 try {
-                    $c = new Cron\CronExpression($autorefresh, new Cron\FieldFactory());
-                    if ($c->isDue()) {
+                    //$c = new Cron\CronExpression($autorefresh, new Cron\FieldFactory());
+                    //if ($c->isDue()) {
                         try {
                             $eqLogic->refresh();
                         } catch (Exception $exc) {
                             log::add('neufbox', 'error', __('Erreur pour ', __FILE__) . $eqLogic->getHumanName() . ' : ' . $exc->getMessage());
                         }
-                    }
+                    //}
                 } catch (Exception $exc) {
                     log::add('neufbox', 'error', __('Expression cron non valide pour ', __FILE__) . $eqLogic->getHumanName() . ' : ' . $autorefresh);
                 }
             }
         }
+        log::add('neufbox', 'debug', __('Cron neufbox end ', __FILE__));
     }
 
     public static function dependancy_info()
@@ -74,9 +76,9 @@ class neufbox extends eqLogic
 
     public static function start()
     {
-        self::cron();
+        self::cron5();
     }
-    
+
     public static function removeAll()
     {
         $eqLogics = eqLogic::byType('neufbox');
@@ -86,93 +88,104 @@ class neufbox extends eqLogic
             }
             $eqLogic->remove();
         }
-        return array(true,'remove ok');
+        return array(
+            true,
+            'remove ok'
+        );
     }
-    
+
     public static function refreshIPdevices()
     {
         $ip = config::byKey('ipBox', 'neufbox');
         $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
         $parsed_json = json_decode($json);
-        $a=print_r($parsed_json,true);
-        log::add('neufbox','debug','******** Début du scan des equipements IP ********:'.$a);
+        $a = print_r($parsed_json, true);
+        log::add('neufbox', 'debug', '******** Début du scan des equipements IP ********:' . $a);
         if (! empty($parsed_json)) {
             foreach ($parsed_json as $mac => $device) {
-                //$parsed_json->{$mac}->{$cmd->getConfiguration('info')}
-                $a=print_r($device,true);
-                log::add('neufbox','debug','mac='.$mac.' - device='.$a);
+                // $parsed_json->{$mac}->{$cmd->getConfiguration('info')}
+                $a = print_r($device, true);
+                log::add('neufbox', 'debug', 'mac=' . $mac . ' - device=' . $a);
                 $eqLogic = neufbox::byLogicalId($mac, 'neufbox');
-                if (!is_object($eqLogic)) {
+                if (! is_object($eqLogic)) {
                     $eqLogic = new neufbox();
                     $eqLogic->setLogicalId($mac);
                     $eqLogic->setIsVisible(1);
                 }
                 
-                $eqLogic->setName(__(($device->{'name'}==''?$mac:$device->{'name'}), __FILE__));
+                $eqLogic->setName(__(($device->{'name'} == '' ? $mac : $device->{'name'}), __FILE__));
                 $eqLogic->setType('action');
                 $eqLogic->setSubType('other');
                 $eqLogic->setEqLogic_id($eqLogic->getId());
                 $eqLogic->setConfiguration('mac', $mac);
                 $eqLogic->setConfiguration('keepalive', $device->{'keepalive'});
-                //$cmd->setConfiguration('info', $key);
-                $eqLogic->setConfiguration('name', ($device->{'name'}==''?$mac:$device->{'name'}));
-                log::add('neufbox','debug','before save mac='.$mac.' - device='.$a);
+                // $cmd->setConfiguration('info', $key);
+                $eqLogic->setConfiguration('name', ($device->{'name'} == '' ? $mac : $device->{'name'}));
+                log::add('neufbox', 'debug', 'before save mac=' . $mac . ' - device=' . $a);
                 $eqLogic->save();
-                log::add('neufbox','debug','after save mac='.$mac.' - device='.$a);
+                log::add('neufbox', 'debug', 'after save mac=' . $mac . ' - device=' . $a);
             }
         }
         return;
     }
-    
-    public static function detection() {
-        log::add('neufbox','debug','******** Début du scan des equipements IP ********');
-        //$result = neufbox::executeAction('scan');
-        //if (!$result[0]) return $result;
+
+    public static function detection()
+    {
+        log::add('neufbox', 'debug', '******** Début du scan des equipements IP ********');
+        // $result = neufbox::executeAction('scan');
+        // if (!$result[0]) return $result;
         $ip = config::byKey('ipBox', 'neufbox');
         $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
         $parsed_json = json_decode($json);
-        //$a=print_r($parsed_json,true);
-        //log::add('neufbox','debug','********  equipements IP ******** '.$a);
+        // $a=print_r($parsed_json,true);
+        // log::add('neufbox','debug','******** equipements IP ******** '.$a);
         $count = 0;
         if (! empty($parsed_json)) {
             foreach ($parsed_json as $mac => $device) {
-                $a=print_r($device,true);
-                //log::add('neufbox','debug','mac='.$mac.' - device='.$a);
-                $count++;
-                $a='';
-                $logicalName=($device->{'name'}==''?$mac:$device->{'name'});
-                $ip='';
-                //log::add('neufbox','debug','Equipement trouvé : '.$a);
-                self::saveEquipment($logicalName,$mac,$ip);
-                //if ($count > 10) break;
+                $a = print_r($device, true);
+                // log::add('neufbox','debug','mac='.$mac.' - device='.$a);
+                $count ++;
+                $a = '';
+                $logicalName = ($device->{'name'} == '' ? $mac : $device->{'name'});
+                $ip = '';
+                // log::add('neufbox','debug','Equipement trouvé : '.$a);
+                self::saveEquipment($logicalName, $mac, $ip);
+                // if ($count > 10) break;
             }
         }
         
         config::save('IPdeviceCount', $count, 'neufbox');
-        log::add('neufbox','info','******** scan des équipements IP - nombre d\'équipements trouvés = '.$count.' ********');
-        return array(true,'******** scan des équipements IP - nombre d\'équipements trouvés = '.$count.' ********');
+        log::add('neufbox', 'info', '******** scan des équipements IP - nombre d\'équipements trouvés = ' . $count . ' ********');
+        return array(
+            true,
+            '******** scan des équipements IP - nombre d\'équipements trouvés = ' . $count . ' ********'
+        );
     }
-    
-    public static function saveEquipment($logicalName,$mac,$ip) {
-        if (empty($logicalName)) {$logicalName = $mac;}
+
+    public static function saveEquipment($logicalName, $mac, $ip)
+    {
+        if (empty($logicalName)) {
+            $logicalName = $mac;
+        }
         
-        //log::add('neufbox','debug','Début saveEquipment ='.$logicalName);
+        // log::add('neufbox','debug','Début saveEquipment ='.$logicalName);
         $eqLogic = self::byLogicalId($mac, 'neufbox');
         if (is_object($eqLogic)) {
             $changed = false;
-            log::add('neufbox','debug','Equipement déjà existant - mise à jour des informations de l\'équipement détecté : '.$logicalName);
+            log::add('neufbox', 'debug', 'Equipement déjà existant - mise à jour des informations de l\'équipement détecté : ' . $logicalName);
             if ($eqLogic->getConfiguration('ip') != $ip) {
-                log::add('neufbox','info','Mise à jour de l\'adresse IP ('.$eqLogic->getConfiguration('ip').'=>'.$ip.') de l\'équipement :' .$mac);
+                log::add('neufbox', 'info', 'Mise à jour de l\'adresse IP (' . $eqLogic->getConfiguration('ip') . '=>' . $ip . ') de l\'équipement :' . $mac);
                 $eqLogic->setConfiguration('ip', $ip);
                 $changed = true;
             }
             if ($eqLogic->getConfiguration('name') != $logicalName) {
-                log::add('neufbox','info','Mise à jour du nom ('.$eqLogic->getConfiguration('name').'=>'.$logicalName.') de l\'équipement :' .$mac);
+                log::add('neufbox', 'info', 'Mise à jour du nom (' . $eqLogic->getConfiguration('name') . '=>' . $logicalName . ') de l\'équipement :' . $mac);
                 $eqLogic->setConfiguration('name', $logicalName);
                 $changed = true;
             }
             
-            if ($changed) $eqLogic->save();
+            if ($changed)
+                $eqLogic->save();
         } else {
             $eqLogic = new self();
             $eqLogic->setLogicalId($mac);
@@ -183,16 +196,16 @@ class neufbox extends eqLogic
             $eqLogic->setConfiguration('mac', $mac);
             $eqLogic->setIsVisible(1);
             $eqLogic->setIsEnable(1);
-            log::add('neufbox','debug','before save() saveEquipment ='.$logicalName);
+            log::add('neufbox', 'debug', 'before save() saveEquipment =' . $logicalName);
             $eqLogic->save();
         }
-        log::add('neufbox','debug','End saveEquipment ='.$logicalName);
+        log::add('neufbox', 'debug', 'End saveEquipment =' . $logicalName);
     }
-    
-    public static function scanIPdevices() {
+
+    public static function scanIPdevices()
+    {
         return neufbox::detection();
     }
-    
 
     /* * *********************Méthodes d'instance************************* */
     public function preInsert()
@@ -209,10 +222,9 @@ class neufbox extends eqLogic
 
     public function postSave()
     {
-        //log::add('neufbox','debug','start postsave Equip :'.$this->getLogicalId());
-        
+        // log::add('neufbox','debug','start postsave Equip :'.$this->getLogicalId());
         $cmd = $this->getCmd(null, 'refresh');
-        if (!is_object($cmd)) {
+        if (! is_object($cmd)) {
             $cmd = new neufboxCmd();
             $cmd->setLogicalId('refresh');
             $cmd->setIsVisible(1);
@@ -225,7 +237,7 @@ class neufbox extends eqLogic
         
         if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
             $cmd = $this->getCmd(null, 'getCallhistoryList');
-            if (!is_object($cmd)) {
+            if (! is_object($cmd)) {
                 $cmd = new neufboxCmd();
                 $cmd->setLogicalId('getCallhistoryList');
                 $cmd->setIsVisible(1);
@@ -238,7 +250,7 @@ class neufbox extends eqLogic
             $cmd->save();
             
             $cmd = $this->getCmd(null, 'incomingCallhistoryList');
-            if (!is_object($cmd)) {
+            if (! is_object($cmd)) {
                 $cmd = new neufboxCmd();
                 $cmd->setLogicalId('incomingCallhistoryList');
                 $cmd->setIsVisible(1);
@@ -250,7 +262,7 @@ class neufbox extends eqLogic
             $cmd->save();
             
             $cmd = $this->getCmd(null, 'outgoingCallhistoryList');
-            if (!is_object($cmd)) {
+            if (! is_object($cmd)) {
                 $cmd = new neufboxCmd();
                 $cmd->setLogicalId('outgoingCallhistoryList');
                 $cmd->setIsVisible(1);
@@ -262,7 +274,7 @@ class neufbox extends eqLogic
             $cmd->save();
             
             $cmd = $this->getCmd(null, 'lastIncomingCall');
-            if (!is_object($cmd)) {
+            if (! is_object($cmd)) {
                 $cmd = new neufboxCmd();
                 $cmd->setLogicalId('lastIncomingCall');
                 $cmd->setIsVisible(1);
@@ -289,8 +301,8 @@ class neufbox extends eqLogic
                     $neufboxCmd->setLogicalId($key);
                     $neufboxCmd->setIsVisible(1);
                 }
-                $neufboxCmd->setConfiguration($key,$key);
-                $neufboxCmd->setName(__($key,__FILE__));
+                $neufboxCmd->setConfiguration($key, $key);
+                $neufboxCmd->setName(__($key, __FILE__));
                 $neufboxCmd->setType('info');
                 if ($key == 'active') {
                     $neufboxCmd->setSubType('binary');
@@ -302,7 +314,7 @@ class neufbox extends eqLogic
                 $neufboxCmd->save();
             }
         }
-        //log::add('neufbox','debug','end postsave Equip');
+        // log::add('neufbox','debug','end postsave Equip');
     }
 
     public function preUpdate()
@@ -313,7 +325,7 @@ class neufbox extends eqLogic
 
     public function preRemove()
     {
-        //TODO est-ce encore utile ?
+        // TODO est-ce encore utile ?
         @unlink(__DIR__ . '/../../ressources/CONFIG' . $this->getId());
     }
 
@@ -331,46 +343,60 @@ class neufbox extends eqLogic
                 }
             }
             fclose($myConfig);
-        };
+        }
+        ;
     }
 
     public function refresh()
     {
+        log::add('neufbox', 'debug', '******** Début du refresh de l equipement ********:' . $this->getName());
         $ip = config::byKey('ipBox', 'neufbox');
         $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
         $parsed_json = json_decode($json);
-        $parsed_json = json_decode($json);
-        $a=print_r($parsed_json,true);
-        log::add('neufbox','debug','******** Début du refresh des equipements IP ********:'.$a);
-        //foreach ($this->getCmd('info') as $cmd) {
-        $eqLogics = eqLogic::byType('neufbox');
-        foreach ($eqLogics as $eqLogic) {
-            if ($eqLogic->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
-                $cmd = $eqLogic->getCmd('action','getCallhistoryList');
+      
+        if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
+            log::add('neufbox', 'debug', '** eqLogic name= ' . $this->getName() . ' ** eqLogic mac =:' . $this->getConfiguration('mac'));
+            $cmd = $this->getCmd(null, 'getCallhistoryList');
+            if (is_object($cmd)) {
                 $cmd->execCmd();
-                continue;
+            } else {
+                log::add('neufbox', 'warning', '** eqLogic name= ' . $this->getName() . ' has no cmd getCallhistoryList !');
             }
-            $mac = $eqLogic->getConfiguration('mac');
-            if (!isset($parsed_json->{$mac})) continue;
-            /*$a=print_r($parsed_json->{$mac},true);
-            log::add('neufbox','debug','refresh equip :'.$mac.' - value='.$a);
-            if ($a =="") continue;
-            */
-            //equipment not connexted => continue
-            foreach ($eqLogic->getCmd('info') as $cmd) {
-                //log::add('neufbox','debug','refresh cmd:'.$cmd->getLogicalId().' - mac ='.$mac);
-                $val = $parsed_json->{$mac}->{$cmd->getLogicalId()};
-                if ($cmd->getValue() != $val) {
-                    $cmd->setValue($val);
-                    $cmd->save();
-                    $cmd->setCollectDate('');
-                    $cmd->event($val);
+        }
+        $mac = $this->getConfiguration('mac');
+        if (! isset($parsed_json->{$mac})) {
+            log::add('neufbox', 'warning', '** eqLogic name= ' . $this->getName() . ' refresh failed mac not found in json stream ! '.$mac);
+            foreach ($this->getCmd('info') as $cmd) {
+                continue;
+                $value = "unknown";
+                if ($cmd->execCmd() !== $value) {
+                    log::add('neufbox', 'debug', 'refresh info cmd:' . $cmd->getLogicalId() . ' - value =' . $value . ' - mac =' . $mac);
+                    $cmd->event($value);
                 }
+            }
+            return;
+        }
+        /*
+         * $a=print_r($parsed_json->{$mac},true);
+         * log::add('neufbox','debug','refresh equip :'.$mac.' - value='.$a);
+         * if ($a =="") continue;
+         */
+        // equipment not connected => continue
+        foreach ($this->getCmd('info') as $cmd) {
+            $value = $parsed_json->{$mac}->{$cmd->getLogicalId()};
+            //if ($cmd->getValue() != $value) {
+            //if ($cmd->execCmd() !== $cmd->formatValue($value)) {
+            if ($cmd->execCmd() !== $value) {
+                log::add('neufbox', 'debug', 'refresh info cmd:' . $cmd->getLogicalId() . ' - value =' . $value . ' - mac =' . $mac);
+                //$cmd->setValue($value);
+                //$cmd->save();
+                //$cmd->setCollectDate('');
+                $cmd->event($value);
             }
         }
         $this->refreshWidget();
     }
-    
+
     public function toHtml($_version = 'dashboard')
     {
         $replace = $this->preToHtml($_version);
@@ -404,76 +430,75 @@ class neufbox extends eqLogic
                     continue;
                 }
                 
-                        
-                        $cmd_id = $eqLogic->getID();
-                        $name = $eqLogic->getName();
-                        $status = $eqLogic->searchCmdByConfiguration('status','info')[0]->execCmd();
-                        if ($status == 'online') {
-                            $statusIcon = 'fa-check';
-                            $statusStyle = '';
-                        } else {
-                            $statusIcon = 'fa-ban';
-                            $statusStyle = $colorDark;
-                        }
-                        $active = $eqLogic->searchCmdByConfiguration('active','info')[0]->execCmd();
-                        if ($active) {
-                            $activeIcon = 'fa-eye';
-                            $activeStyleOff = $colorDark;
-                            $activeStyleOn = '';
-                            if ($configuration['displayTimer']) {
-                                $timer = $eqLogic->searchCmdByConfiguration('timer','info')[0]->execCmd();
-                                $timer = '-' . gmdate("i:s", (int)$timer);
-                            }
-                        } else {
-                            $activeIcon = 'fa-eye-slash';
-                            $activeStyleOff = '';
-                            $activeStyleOn = $colorDark;
-                            $timer = '';
-                        }
-                        $iface = $eqLogic->searchCmdByConfiguration('iface','info')[0]->execCmd();
-                        $ifaceIcon = '';
-                        if (preg_match('/^wlan/', $iface)) {
-                            $ifaceIcon = 'fa-wifi';
-                        } elseif (preg_match('/^lan/', $iface)) {
-                            $ifaceIcon = 'fa-plug';
-                        }
-                        $online = $eqLogic->searchCmdByConfiguration('online','info')[0]->execCmd();
-                        if ($online > 3599999) {
-                            $online = 3599999;
-                        }
-                        if (empty($online)) {} elseif (mb_strlen(floor($online / 3600)) == 1) {
-                            $online = '0' . floor($online / 3600) . ':' . gmdate("i:s", $online);
-                        } else {
-                            $online = floor($online / 3600) . ':' . gmdate("i:s", $online);
-                        }
-                        $offline = $eqLogic->searchCmdByConfiguration('offline','info')[0]->execCmd();
-                        if ($offline > 3599999) {
-                            $offline = 3599999;
-                        }
-                        if (empty($offline)) {} elseif (mb_strlen(floor($offline / 3600)) == 1) {
-                            $offline = '0' . floor($offline / 3600) . ':' . gmdate("i:s", $offline);
-                        } else {
-                            $offline = floor($offline / 3600) . ':' . gmdate("i:s", $offline);
-                        }
-                        $divStatus = '<div class="history fa ' . $statusIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . $eqLogic->searchCmdByConfiguration('status','info')[0]->getId() . '" style="margin: 5px;' . $statusStyle . '"></div>';
-                        $divActive = '<div class="history fa ' . $activeIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . $eqLogic->searchCmdByConfiguration('active','info')[0]->getId() . '" style="margin: 5px; ' . $activeStyleOn . '"></div>';
-                        $tdBodyStatus = '<td style="text-align: center;">' . $divStatus . $divActive . '</td>';
-                        $tdBodyIp = '';
-                        if ($configuration['displayIp']) {
-                            $ip = $eqLogic->searchCmdByConfiguration('ip','info')[0]->execCmd();
-                            $tdBodyIp = '<td><span style="' . $activeStyleOn . ';">' . $ip . '</span></td>';
-                        }
-                        $tdBodyMac = '';
-                        if ($configuration['displayMac']) {
-                            $mac = $eqLogic->getConfiguration('mac');
-                            $tdBodyMac = '<td><span style="' . $activeStyleOn . ';">' . $mac . '</span></td>';
-                        }
-                        $tdBodyHostname = '';
-                        if ($configuration['displayHostname']) {
-                            $hostname = $eqLogic->searchCmdByConfiguration('name','info')[0]->execCmd();
-                            $tdBodyHostname = '<td><span style="' . $activeStyleOn . ';">' . $hostname . '</span></td>';
-                        }
-                        $body .= '<tr id="' . $cmd_id . '">
+                $cmd_id = $eqLogic->getID();
+                $name = $eqLogic->getName();
+                $status = $eqLogic->searchCmdByConfiguration('status', 'info')[0]->execCmd();
+                if ($status == 'online') {
+                    $statusIcon = 'fa-check';
+                    $statusStyle = '';
+                } else {
+                    $statusIcon = 'fa-ban';
+                    $statusStyle = $colorDark;
+                }
+                $active = $eqLogic->searchCmdByConfiguration('active', 'info')[0]->execCmd();
+                if ($active) {
+                    $activeIcon = 'fa-eye';
+                    $activeStyleOff = $colorDark;
+                    $activeStyleOn = '';
+                    if ($configuration['displayTimer']) {
+                        $timer = $eqLogic->searchCmdByConfiguration('timer', 'info')[0]->execCmd();
+                        $timer = '-' . gmdate("i:s", (int) $timer);
+                    }
+                } else {
+                    $activeIcon = 'fa-eye-slash';
+                    $activeStyleOff = '';
+                    $activeStyleOn = $colorDark;
+                    $timer = '';
+                }
+                $iface = $eqLogic->searchCmdByConfiguration('iface', 'info')[0]->execCmd();
+                $ifaceIcon = '';
+                if (preg_match('/^wlan/', $iface)) {
+                    $ifaceIcon = 'fa-wifi';
+                } elseif (preg_match('/^lan/', $iface)) {
+                    $ifaceIcon = 'fa-plug';
+                }
+                $online = $eqLogic->searchCmdByConfiguration('online', 'info')[0]->execCmd();
+                if ($online > 3599999) {
+                    $online = 3599999;
+                }
+                if (empty($online)) {} elseif (mb_strlen(floor($online / 3600)) == 1) {
+                    $online = '0' . floor($online / 3600) . ':' . gmdate("i:s", $online);
+                } else {
+                    $online = floor($online / 3600) . ':' . gmdate("i:s", $online);
+                }
+                $offline = $eqLogic->searchCmdByConfiguration('offline', 'info')[0]->execCmd();
+                if ($offline > 3599999) {
+                    $offline = 3599999;
+                }
+                if (empty($offline)) {} elseif (mb_strlen(floor($offline / 3600)) == 1) {
+                    $offline = '0' . floor($offline / 3600) . ':' . gmdate("i:s", $offline);
+                } else {
+                    $offline = floor($offline / 3600) . ':' . gmdate("i:s", $offline);
+                }
+                $divStatus = '<div class="history fa ' . $statusIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . $eqLogic->searchCmdByConfiguration('status', 'info')[0]->getId() . '" style="margin: 5px;' . $statusStyle . '"></div>';
+                $divActive = '<div class="history fa ' . $activeIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . $eqLogic->searchCmdByConfiguration('active', 'info')[0]->getId() . '" style="margin: 5px; ' . $activeStyleOn . '"></div>';
+                $tdBodyStatus = '<td style="text-align: center;">' . $divStatus . $divActive . '</td>';
+                $tdBodyIp = '';
+                if ($configuration['displayIp']) {
+                    $ip = $eqLogic->searchCmdByConfiguration('ip', 'info')[0]->execCmd();
+                    $tdBodyIp = '<td><span style="' . $activeStyleOn . ';">' . $ip . '</span></td>';
+                }
+                $tdBodyMac = '';
+                if ($configuration['displayMac']) {
+                    $mac = $eqLogic->getConfiguration('mac');
+                    $tdBodyMac = '<td><span style="' . $activeStyleOn . ';">' . $mac . '</span></td>';
+                }
+                $tdBodyHostname = '';
+                if ($configuration['displayHostname']) {
+                    $hostname = $eqLogic->searchCmdByConfiguration('name', 'info')[0]->execCmd();
+                    $tdBodyHostname = '<td><span style="' . $activeStyleOn . ';">' . $hostname . '</span></td>';
+                }
+                $body .= '<tr id="' . $cmd_id . '">
                                   <td><span class="fa ' . $ifaceIcon . ' fa-1" style="margin-right: 5px;' . $activeStyleOn . '"></span><span style="' . $activeStyleOn . ';">' . $name . '</span></td>
                                   ' . $tdBodyStatus . '
                                   <td><span style="' . $activeStyleOn . ';">' . $online . '</span><span style="font-size: 70%; margin: 2px; vertical-align: bottom;">' . $timer . '</span></td>
@@ -482,7 +507,6 @@ class neufbox extends eqLogic
                                   ' . $tdBodyMac . '
                                   ' . $tdBodyHostname . '
                                   </tr>';
-                   
             }
             $replace['#thead#'] = $thead;
             $replace['#body#'] = $body;
@@ -496,18 +520,23 @@ class neufbox extends eqLogic
                 }
                 $cmd_id = $cmd->getID();
                 $name = $cmd->getName();
-                $status = $this->getCmd(null, $cmd->getId() . '_status')->execCmd();
-                $active = $this->getCmd(null, $cmd->getId() . '_active')->execCmd();
+                $status = $this->getCmd(null, $cmd->getId() . '_status')
+                    ->execCmd();
+                $active = $this->getCmd(null, $cmd->getId() . '_active')
+                    ->execCmd();
                 $style = null;
                 if ($status == 'online') {
                     $statusIcon = 'fa-check';
-                    $counter = $this->getCmd(null, $cmd->getId() . '_online')->execCmd();
+                    $counter = $this->getCmd(null, $cmd->getId() . '_online')
+                        ->execCmd();
                 } elseif ($active) {
                     $statusIcon = 'fa-eye';
-                    $counter = $this->getCmd(null, $cmd->getId() . '_online')->execCmd();
+                    $counter = $this->getCmd(null, $cmd->getId() . '_online')
+                        ->execCmd();
                 } else {
                     $statusIcon = 'fa-eye-slash';
-                    $counter = $this->getCmd(null, $cmd->getId() . '_offline')->execCmd();
+                    $counter = $this->getCmd(null, $cmd->getId() . '_offline')
+                        ->execCmd();
                     $style = 'color: rgb(50,50,50)';
                 }
                 if ($counter > 3599999) {
@@ -577,7 +606,7 @@ class neufboxCmd extends cmd
     public function postSave()
     { // MAJ du fichier CONFIG
         return;
-        log::add('neufbox','debug','start postsave CMD :'.$this->getLogicalId());
+        log::add('neufbox', 'debug', 'start postsave CMD :' . $this->getLogicalId());
         
         if ($this->getLogicalId() == 'refresh') {
             return;
@@ -594,7 +623,7 @@ class neufboxCmd extends cmd
                 $this->save();
             }
         }
-        log::add('neufbox','debug','end postsave CMD');
+        log::add('neufbox', 'debug', 'end postsave CMD');
     }
 
     public function postRemove()
@@ -621,75 +650,82 @@ class neufboxCmd extends cmd
 
     public function execute($_options = array())
     {
-        log::add('neufbox','debug','execute action = '.$this->getLogicalId());
+        log::add('neufbox', 'debug', 'execute action = ' . $this->getLogicalId());
         if ($this->getLogicalId() == 'refresh') {
             $this->getEqLogic()->refresh();
             return;
         }
         
         if ($this->getLogicalId() == 'getCallhistoryList') {
-            //log::add('neufbox','debug','execute action call history');
+            // log::add('neufbox','debug','execute action call history');
             $ip = config::byKey('ipbox', 'neufbox');
-            $request = 'http://'.$ip.'/api/1.0/?method=auth.getToken';
+            $request = 'http://' . $ip . '/api/1.0/?method=auth.getToken';
             $request = new com_http($request);
             $xmlstr = $request->exec(5, 1);
-                        
+            
             $neufbox = new SimpleXMLElement($xmlstr);
-            log::add('neufbox','debug','get token = '.$neufbox->auth['token']);
+            log::add('neufbox', 'debug', 'get token = ' . $neufbox->auth['token']);
             
-            $login=config::byKey('neufboxLogin', 'neufbox');
-            $password=config::byKey('neufboxPassword', 'neufbox');
-            $token=$neufbox->auth['token'];
-            $hash = hash_hmac('sha256',hash('sha256',$login),$token).hash_hmac('sha256',hash('sha256',$password), $token);
-            //log::add('neufbox','debug','hash = '.$hash);
-            $request = 'http://'.$ip.'/api/1.0/?method=auth.checkToken&token='.$neufbox->auth['token'].'&hash='.$hash;
+            $login = config::byKey('neufboxLogin', 'neufbox');
+            $password = config::byKey('neufboxPassword', 'neufbox');
+            $token = $neufbox->auth['token'];
+            $hash = hash_hmac('sha256', hash('sha256', $login), $token) . hash_hmac('sha256', hash('sha256', $password), $token);
+            // log::add('neufbox','debug','hash = '.$hash);
+            $request = 'http://' . $ip . '/api/1.0/?method=auth.checkToken&token=' . $neufbox->auth['token'] . '&hash=' . $hash;
             $request = new com_http($request);
             $xmlstr = $request->exec(5, 1);
             
-            log::add('neufbox','debug','check token = '.$xmlstr);
+            log::add('neufbox', 'debug', 'check token = ' . $xmlstr);
             
-            $request = 'http://'.$ip.'/api/1.0/?method=voip.getCallhistoryList&token='.$neufbox->auth['token'];
+            $request = 'http://' . $ip . '/api/1.0/?method=voip.getCallhistoryList&token=' . $neufbox->auth['token'];
             $request = new com_http($request);
             $xmlstr = $request->exec(5, 1);
-            log::add('neufbox','debug','end getCallhistoryList = '.$xmlstr);
+            log::add('neufbox', 'debug', 'end getCallhistoryList = ' . $xmlstr);
             $rsp = new SimpleXMLElement($xmlstr);
-            $i=0;
+            $i = 0;
             /*
-            setlocale(LC_TIME, "fr_FR");
-            date_default_timezone_set('Europe/Paris');
-            // --- La setlocale() fonctionnne pour strftime mais pas pour DateTime->format()
-            setlocale(LC_TIME, 'fr_FR.utf8','fra');// OK
-            // strftime("jourEnLettres jour moisEnLettres annee") de la date courante
-            log::add('neufbox','debug','Date du jour : ', strftime("%A %d %B %Y"));
-            */
+             * setlocale(LC_TIME, "fr_FR");
+             * date_default_timezone_set('Europe/Paris');
+             * // --- La setlocale() fonctionnne pour strftime mais pas pour DateTime->format()
+             * setlocale(LC_TIME, 'fr_FR.utf8','fra');// OK
+             * // strftime("jourEnLettres jour moisEnLettres annee") de la date courante
+             * log::add('neufbox','debug','Date du jour : ', strftime("%A %d %B %Y"));
+             */
             $incomingCalls = array();
             $outgoingCalls = array();
             foreach ($rsp->{'calls'}->children() as $call) {
-                //log::add('neufbox','debug','appel = '.$call['direction'].' - '.$call['number'].' - '.$call['length'].' - '.date("D j M h:i:s",(int)$call['date']));
+                // log::add('neufbox','debug','appel = '.$call['direction'].' - '.$call['number'].' - '.$call['length'].' - '.date("D j M h:i:s",(int)$call['date']));
                 if ($call['direction'] == 'incoming') {
-                    $incomingCalls[] = array('number'=> $call['number'],'length'=>$call['length'],'date'=>(int)$call['date']);
-                    
+                    $incomingCalls[] = array(
+                        'number' => $call['number'],
+                        'length' => $call['length'],
+                        'date' => (int) $call['date']
+                    );
                 } else {
-                    $outgoingCalls[] = array('number'=> $call['number'],'length'=>$call['length'],'date'=>(int)$call['date']);
+                    $outgoingCalls[] = array(
+                        'number' => $call['number'],
+                        'length' => $call['length'],
+                        'date' => (int) $call['date']
+                    );
                 }
-                $i++;
+                $i ++;
             }
-            //log::add('neufbox','debug','nbr d\appels = '.$i);
-            //<call type="voip" direction="incoming" number="024054 XXXX" length="259" date="1508519150" />
+            // log::add('neufbox','debug','nbr d\appels = '.$i);
+            // <call type="voip" direction="incoming" number="024054 XXXX" length="259" date="1508519150" />
             $value = "";
             
             $lastDate = 0;
             $lastCall = '';
             foreach ($incomingCalls as $call) {
-                $line = $call['number'].' : '.$call['length'].'s le '.date("D j M H:i:s",$call['date']);
+                $line = $call['number'] . ' : ' . $call['length'] . 's le ' . date("D j M H:i:s", $call['date']);
                 if ($lastDate < $call['date']) {
                     $lastDate = $call['date'];
                     $lastCall = $line;
                 }
-                $value .= $call['number'].' : '.$call['length'].'s le '.date("D j M H:i:s",$call['date'])."\n";
+                $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . date("D j M H:i:s", $call['date']) . "\n";
             }
             
-            $cmd = $this->getEqLogic()->getCmd('info','lastIncomingCall');
+            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCall');
             if ($cmd->getValue() != $lastCall) {
                 $cmd->setValue($lastCall);
                 $cmd->save();
@@ -697,8 +733,8 @@ class neufboxCmd extends cmd
                 $cmd->event($lastCall);
             }
             
-            log::add('neufbox','debug','appels entrants = '.$value);
-            $cmd = $this->getEqLogic()->getCmd('info','incomingCallhistoryList');
+            log::add('neufbox', 'debug', 'appels entrants = ' . $value);
+            $cmd = $this->getEqLogic()->getCmd('info', 'incomingCallhistoryList');
             if ($cmd->getValue() != $value) {
                 $cmd->setValue($value);
                 $cmd->save();
@@ -707,10 +743,10 @@ class neufboxCmd extends cmd
             }
             $value = "";
             foreach ($outgoingCalls as $call) {
-                $value .= $call['number'].' : '.$call['length'].'s le '.date("D j M H:i:s",$call['date'])."\n";
+                $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . date("D j M H:i:s", $call['date']) . "\n";
             }
-            log::add('neufbox','debug','appels sortants = '.$value);
-            $cmd = $this->getEqLogic()->getCmd('info','outgoingCallhistoryList');
+            log::add('neufbox', 'debug', 'appels sortants = ' . $value);
+            $cmd = $this->getEqLogic()->getCmd('info', 'outgoingCallhistoryList');
             if ($cmd->getValue() != $value) {
                 $cmd->setValue($value);
                 $cmd->save();
@@ -718,7 +754,7 @@ class neufboxCmd extends cmd
                 $cmd->event($value);
             }
         }
-        //log::add('neufbox','debug','execute');
+        // log::add('neufbox','debug','execute');
     }
     
     /* * **********************Getteur Setteur*************************** */

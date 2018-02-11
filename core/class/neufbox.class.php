@@ -32,23 +32,24 @@ class neufbox extends eqLogic
     public static function cron5()
     {
         log::add('neufbox', 'debug', __('Cron neufbox start ', __FILE__));
-        foreach (eqLogic::byType('neufbox') as $eqLogic) {
-            //$autorefresh = $eqLogic->getConfiguration('autorefresh');
-            $autorefresh = true;
-            if ($eqLogic->getIsEnable() == 1 && $autorefresh != '') {
+        try {
+            $eqLogics = eqLogic::byType('neufbox');
+            foreach ($eqLogics as $eqLogic) {
+                $autorefresh = $eqLogic->getConfiguration('autorefresh');
                 try {
-                    //$c = new Cron\CronExpression($autorefresh, new Cron\FieldFactory());
-                    //if ($c->isDue()) {
-                        try {
-                            $eqLogic->refresh();
-                        } catch (Exception $exc) {
-                            log::add('neufbox', 'error', __('Erreur pour ', __FILE__) . $eqLogic->getHumanName() . ' : ' . $exc->getMessage());
+                    $c = new Cron\CronExpression($autorefresh, new Cron\FieldFactory());
+                    if ($c->isDue()) {
+                        if ($eqLogic->getConfiguration('ip') !== config::byKey('ipBox', 'neufbox')) {
+                            continue;
                         }
-                    //}
+                        $eqLogic->refresh();
+                    }
                 } catch (Exception $exc) {
                     log::add('neufbox', 'error', __('Expression cron non valide pour ', __FILE__) . $eqLogic->getHumanName() . ' : ' . $autorefresh);
                 }
             }
+        } catch (Exception $exc) {
+            log::add('neufbox', 'error', __('Erreur pour ', __FILE__) . $autorefresh . ' : ' . $exc->getMessage());
         }
         log::add('neufbox', 'debug', __('Cron neufbox end ', __FILE__));
     }
@@ -93,12 +94,39 @@ class neufbox extends eqLogic
             'remove ok'
         );
     }
+    
+    public static function queryPhpBox() {
+        log::add('neufbox','debug','* start queryPhpBox ***');
+        $ip = config::byKey('ipBox', 'neufbox');
+        $request = 'http://' . $ip . '/api/1.0/?method=lan.getHostsList';
+        $request = new com_http($request);
+        $xmlstr = $request->exec(5, 1);
+        log::add('neufbox', 'debug', 'lan.getHostsList = ' . $xmlstr);
+        $rsp = new SimpleXMLElement($xmlstr);
+        $hosts=array();
+        foreach ($rsp->children() as $host) {
+            //log::add('neufbox','debug','host mac = '.$host['mac']);
+            $hosts[(string) $host['mac']]=array('offline'=>((string) $host['status']!=='online'?(int) $host['alive']:''),'online'=>((string) $host['status']=='online'?(int) $host['alive']:''),'timer'=>((string) $host['status']=='online'?(int) $host['probe']:''),'isLock'=>false,'active'=> ((string) $host['status']=='online'?true:false),'ip'=>(string) $host['ip'],'iface'=>(string) $host['iface'],'name'=>(string) $host['name'],'keepalive'=>900,'status'=>(string) $host['status']);
+        }
+		return json_encode($hosts);
+    }
+    
+    
+    private static function queryBox() {
+        $result2 = neufbox::queryPhpBox();
+        return json_decode($result2);
+        /*
+        $ip = config::byKey('ipBox', 'neufbox');
+        $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
+        $a= print_r($json,true);
+        log::add('neufbox', 'debug', '+++ dump3 = ' . $a);
+        return json_decode($json);
+        */
+    }
 
     public static function refreshIPdevices()
     {
-        $ip = config::byKey('ipBox', 'neufbox');
-        $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
-        $parsed_json = json_decode($json);
+        $parsed_json = neufbox::queryBox();
         $a = print_r($parsed_json, true);
         log::add('neufbox', 'debug', '******** Début du scan des equipements IP ********:' . $a);
         if (! empty($parsed_json)) {
@@ -134,9 +162,10 @@ class neufbox extends eqLogic
         log::add('neufbox', 'debug', '******** Début du scan des equipements IP ********');
         // $result = neufbox::executeAction('scan');
         // if (!$result[0]) return $result;
-        $ip = config::byKey('ipBox', 'neufbox');
+        /*$ip = config::byKey('ipBox', 'neufbox');
         $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
         $parsed_json = json_decode($json);
+        */$parsed_json = neufbox::queryBox();
         // $a=print_r($parsed_json,true);
         // log::add('neufbox','debug','******** equipements IP ******** '.$a);
         $count = 0;
@@ -222,7 +251,7 @@ class neufbox extends eqLogic
 
     public function postSave()
     {
-        // log::add('neufbox','debug','start postsave Equip :'.$this->getLogicalId());
+        log::add('neufbox','debug','start postsave Equip :'.$this->getLogicalId());
         $cmd = $this->getCmd(null, 'refresh');
         if (! is_object($cmd)) {
             $cmd = new neufboxCmd();
@@ -236,17 +265,17 @@ class neufbox extends eqLogic
         $cmd->save();
         
         if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
-            $cmd = $this->getCmd(null, 'getCallhistoryList');
+            $cmd = $this->getCmd(null, 'refreshCallhistoryList');
             if (! is_object($cmd)) {
                 $cmd = new neufboxCmd();
-                $cmd->setLogicalId('getCallhistoryList');
+                $cmd->setLogicalId('refreshCallhistoryList');
                 $cmd->setIsVisible(1);
             }
-            $cmd->setName(__('getCallhistoryList', __FILE__));
+            $cmd->setName(__('refreshCallhistoryList', __FILE__));
             $cmd->setType('action');
             $cmd->setSubType('other');
             $cmd->setEqLogic_id($this->getId());
-            $cmd->setConfiguration('request', 'getCallhistoryList');
+            $cmd->setConfiguration('request', 'refreshCallhistoryList');
             $cmd->save();
             
             $cmd = $this->getCmd(null, 'incomingCallhistoryList');
@@ -344,57 +373,89 @@ class neufbox extends eqLogic
             }
             fclose($myConfig);
         }
-        ;
     }
-
-    public function refresh()
+    
+    /* * ******* refresh all except box itself **** */
+    private function refresh_all($parsed_json)
     {
-        log::add('neufbox', 'debug', '******** Début du refresh de l equipement ********:' . $this->getName());
-        $ip = config::byKey('ipBox', 'neufbox');
-        $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
-        $parsed_json = json_decode($json);
-      
-        if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
-            log::add('neufbox', 'debug', '** eqLogic name= ' . $this->getName() . ' ** eqLogic mac =:' . $this->getConfiguration('mac'));
-            $cmd = $this->getCmd(null, 'getCallhistoryList');
-            if (is_object($cmd)) {
-                $cmd->execCmd();
-            } else {
-                log::add('neufbox', 'warning', '** eqLogic name= ' . $this->getName() . ' has no cmd getCallhistoryList !');
+        log::add('neufbox', 'debug', __('refresh all equipments neufbox start ', __FILE__));
+        $change = false;
+        foreach (eqLogic::byType('neufbox') as $eqLogic) {
+            //log::add('neufbox', 'debug', __('refresh? equipment neufbox start '.$eqLogic->getConfiguration('ip').' -- '.$eqLogic->getConfiguration('mac'), __FILE__));
+            if ($eqLogic->getConfiguration('ip') !== config::byKey('ipBox', 'neufbox')) {
+                if (/*$eqLogic->getIsEnable() &&*/ $eqLogic->getConfiguration('ip') !== config::byKey('ipBox', 'neufbox')) {
+                    try {
+                        if ($this->refreshEqLogic($eqLogic,$parsed_json)) $change = true;
+                    } catch (Exception $exc) {
+                        log::add('neufbox', 'error', __('Erreur pour ', __FILE__) . $eqLogic->getHumanName() . ' : ' . $exc->getMessage());
+                    }
+                }
             }
         }
-        $mac = $this->getConfiguration('mac');
+        log::add('neufbox', 'debug', __('refresh all equipments neufbox end ', __FILE__));
+        return $change;
+    }
+    
+    private function refreshEqLogic($eqLogic,$parsed_json)
+    {
+        
+        $change = false;
+        $mac = $eqLogic->getConfiguration('mac');
+        //log::add('neufbox', 'debug', __('refresh equipment neufbox start '.$mac, __FILE__));
         if (! isset($parsed_json->{$mac})) {
-            log::add('neufbox', 'warning', '** eqLogic name= ' . $this->getName() . ' refresh failed mac not found in json stream ! '.$mac);
-            foreach ($this->getCmd('info') as $cmd) {
+            log::add('neufbox', 'warning', '** eqLogic name= ' . $eqLogic->getName() . ' refresh failed mac not found in json stream ! ' . $mac);
+            foreach ($eqLogic->getCmd('info') as $cmd) {
+                //TODO
                 continue;
                 $value = "unknown";
                 if ($cmd->execCmd() !== $value) {
                     log::add('neufbox', 'debug', 'refresh info cmd:' . $cmd->getLogicalId() . ' - value =' . $value . ' - mac =' . $mac);
                     $cmd->event($value);
+                    $change = true;
                 }
             }
-            return;
-        }
-        /*
-         * $a=print_r($parsed_json->{$mac},true);
-         * log::add('neufbox','debug','refresh equip :'.$mac.' - value='.$a);
-         * if ($a =="") continue;
-         */
-        // equipment not connected => continue
-        foreach ($this->getCmd('info') as $cmd) {
-            $value = $parsed_json->{$mac}->{$cmd->getLogicalId()};
-            //if ($cmd->getValue() != $value) {
-            //if ($cmd->execCmd() !== $cmd->formatValue($value)) {
-            if ($cmd->execCmd() !== $value) {
-                log::add('neufbox', 'debug', 'refresh info cmd:' . $cmd->getLogicalId() . ' - value =' . $value . ' - mac =' . $mac);
-                //$cmd->setValue($value);
-                //$cmd->save();
-                //$cmd->setCollectDate('');
-                $cmd->event($value);
+        } else {
+            foreach ($eqLogic->getCmd('info') as $cmd) {
+                $value = $parsed_json->{$mac}->{$cmd->getLogicalId()};
+                //log::add('neufbox', 'debug', 'refresh info cmd:' . $cmd->getLogicalId() . ' - old value =' . $cmd->execCmd() . ' - mac =' . $mac);
+                // if ($cmd->getValue() != $value) {
+                if ($cmd->execCmd() !== $cmd->formatValue($value)) {
+                //if ($cmd->execCmd() != $value) {
+                    log::add('neufbox', 'debug', 'refresh info cmd:' . $cmd->getLogicalId() . ' - new value =' . $value . ' - mac =' . $mac);
+                    // $cmd->setValue($value);
+                    // $cmd->save();
+                    // $cmd->setCollectDate('');
+                    $cmd->event($value);
+                    $change = true;
+                }
             }
         }
-        $this->refreshWidget();
+        return $change;
+    }        
+
+    public function refresh()
+    {
+        $change = false;
+        $mac = $this->getConfiguration('mac');
+        log::add('neufbox', 'debug', '******** Début du refresh de l\'équipement ********: ' . $this->getName(). ' ** eqLogic mac= ' . $mac);
+        /*$ip = config::byKey('ipBox', 'neufbox');
+        $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
+        $parsed_json = json_decode($json);
+        */$parsed_json = neufbox::queryBox();
+        
+        if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
+            $cmd = $this->getCmd(null, 'refreshCallhistoryList');
+            if (is_object($cmd)) {
+                $cmd->execCmd();
+            } else {
+                log::add('neufbox', 'warning', '** eqLogic name= ' . $this->getName() . ' has no cmd refreshCallhistoryList !');
+            }
+            $change = $this->refresh_all($parsed_json);
+        } else {
+            $change = $this->refreshEqLogic($this,$parsed_json);
+        }
+        
+        if ($change) $this->refreshWidget();
     }
 
     public function toHtml($_version = 'dashboard')
@@ -463,46 +524,55 @@ class neufbox extends eqLogic
                     $ifaceIcon = 'fa-plug';
                 }
                 $online = $eqLogic->searchCmdByConfiguration('online', 'info')[0]->execCmd();
-                if ($online > 3599999) {
-                    $online = 3599999;
-                }
-                if (empty($online)) {} elseif (mb_strlen(floor($online / 3600)) == 1) {
-                    $online = '0' . floor($online / 3600) . ':' . gmdate("i:s", $online);
-                } else {
-                    $online = floor($online / 3600) . ':' . gmdate("i:s", $online);
-                }
+                                
+                $mois = floor($online/3600/24/30);
+                $jour = floor(($online-($mois*3600*24*30))/3600/24);
+                $heure = floor((($online-($mois*3600*24*30))-($jour*3600*24))/3600);
+                //log::add('neufbox', 'debug', '** online sec= ' . $online . ' mois ='.$mois.' jour ='.$jour.' heure='.$heure);
+                
+                $temp=$mois.'m '.$jour.'j '.$heure.'h:'.gmdate("i:s",(int) $online);
+                $temp=($mois?$mois.'m ':'');
+                $temp.=($jour?$jour.'j ':'');
+                $temp.=($heure?$heure.':':'').gmdate("i:s",(int) $online);
+                $online=$temp;
+                
+                
                 $offline = $eqLogic->searchCmdByConfiguration('offline', 'info')[0]->execCmd();
-                if ($offline > 3599999) {
-                    $offline = 3599999;
-                }
-                if (empty($offline)) {} elseif (mb_strlen(floor($offline / 3600)) == 1) {
-                    $offline = '0' . floor($offline / 3600) . ':' . gmdate("i:s", $offline);
-                } else {
-                    $offline = floor($offline / 3600) . ':' . gmdate("i:s", $offline);
-                }
+                $mois = floor($offline/3600/24/30);
+                $jour = floor(($offline-($mois*3600*24*30))/3600/24);
+                $heure = floor((($offline-($mois*3600*24*30))-($jour*3600*24))/3600);
+                //log::add('neufbox', 'debug', '** offline sec= ' . $offline . ' mois ='.$mois.' jour ='.$jour.' heure='.$heure);
+                
+                $temp=$mois.'m '.$jour.'j '.$heure.'h:'.gmdate("i:s",(int) $offline);
+                $temp=($mois?$mois.'m ':'');
+                $temp.=($jour?$jour.'j ':'');
+                $temp.=($heure?$heure.':':'').gmdate("i:s",(int) $offline);
+                $offline=$temp;
+                
                 $divStatus = '<div class="history fa ' . $statusIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . $eqLogic->searchCmdByConfiguration('status', 'info')[0]->getId() . '" style="margin: 5px;' . $statusStyle . '"></div>';
                 $divActive = '<div class="history fa ' . $activeIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . $eqLogic->searchCmdByConfiguration('active', 'info')[0]->getId() . '" style="margin: 5px; ' . $activeStyleOn . '"></div>';
                 $tdBodyStatus = '<td style="text-align: center;">' . $divStatus . $divActive . '</td>';
+                
                 $tdBodyIp = '';
                 if ($configuration['displayIp']) {
                     $ip = $eqLogic->searchCmdByConfiguration('ip', 'info')[0]->execCmd();
-                    $tdBodyIp = '<td><span style="' . $activeStyleOn . ';">' . $ip . '</span></td>';
+                    $tdBodyIp = '<td><span style="' . $statusStyle . ';">' . $ip . '</span></td>';
                 }
                 $tdBodyMac = '';
                 if ($configuration['displayMac']) {
                     $mac = $eqLogic->getConfiguration('mac');
-                    $tdBodyMac = '<td><span style="' . $activeStyleOn . ';">' . $mac . '</span></td>';
+                    $tdBodyMac = '<td><span style="' . $statusStyle . ';">' . $mac . '</span></td>';
                 }
                 $tdBodyHostname = '';
                 if ($configuration['displayHostname']) {
                     $hostname = $eqLogic->searchCmdByConfiguration('name', 'info')[0]->execCmd();
-                    $tdBodyHostname = '<td><span style="' . $activeStyleOn . ';">' . $hostname . '</span></td>';
+                    $tdBodyHostname = '<td><span style="' . $statusStyle . ';">' . $hostname . '</span></td>';
                 }
                 $body .= '<tr id="' . $cmd_id . '">
-                                  <td><span class="fa ' . $ifaceIcon . ' fa-1" style="margin-right: 5px;' . $activeStyleOn . '"></span><span style="' . $activeStyleOn . ';">' . $name . '</span></td>
+                                  <td><span class="fa ' . $ifaceIcon . ' fa-1" style="margin-right: 5px;' . $statusStyle . ';"></span><span style="' . $statusStyle . ';">' . $name . '</span></td>
                                   ' . $tdBodyStatus . '
-                                  <td><span style="' . $activeStyleOn . ';">' . $online . '</span><span style="font-size: 70%; margin: 2px; vertical-align: bottom;">' . $timer . '</span></td>
-                                  <td><span style="' . $activeStyleOff . ';">' . $offline . '</span></td>
+                                  <td><span style="' . $statusStyle . ';">' . $online . '</span><span style="font-size: 70%; margin: 2px; vertical-align: bottom;">' . $timer . '</span></td>
+                                  <td><span style="' . $statusStyle . ';">' . $offline . '</span></td>
                                   ' . $tdBodyIp . '
                                   ' . $tdBodyMac . '
                                   ' . $tdBodyHostname . '
@@ -656,7 +726,7 @@ class neufboxCmd extends cmd
             return;
         }
         
-        if ($this->getLogicalId() == 'getCallhistoryList') {
+        if ($this->getLogicalId() == 'refreshCallhistoryList') {
             // log::add('neufbox','debug','execute action call history');
             $ip = config::byKey('ipbox', 'neufbox');
             $request = 'http://' . $ip . '/api/1.0/?method=auth.getToken';
@@ -680,7 +750,7 @@ class neufboxCmd extends cmd
             $request = 'http://' . $ip . '/api/1.0/?method=voip.getCallhistoryList&token=' . $neufbox->auth['token'];
             $request = new com_http($request);
             $xmlstr = $request->exec(5, 1);
-            log::add('neufbox', 'debug', 'end getCallhistoryList = ' . $xmlstr);
+            log::add('neufbox', 'debug', 'end refreshCallhistoryList = ' . $xmlstr);
             $rsp = new SimpleXMLElement($xmlstr);
             $i = 0;
             /*

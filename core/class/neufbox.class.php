@@ -313,6 +313,42 @@ class neufbox extends eqLogic
             $cmd->setSubType('string');
             $cmd->setEqLogic_id($this->getId());
             $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'lastIncomingCallRead');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('lastIncomingCallRead');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('lastIncomingCallRead', __FILE__));
+            $cmd->setType('info');
+            $cmd->setSubType('binary');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'setLastIncomingCallRead');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('setLastIncomingCallRead');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('setLastIncomingCallRead', __FILE__));
+            $cmd->setType('action');
+            $cmd->setSubType('other');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'resetLastIncomingCallRead');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('resetLastIncomingCallRead');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('resetLastIncomingCallRead', __FILE__));
+            $cmd->setType('action');
+            $cmd->setSubType('other');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->save();
         } else {
             foreach (array(
                 'name',
@@ -786,13 +822,14 @@ class neufboxCmd extends cmd
             
             $lastDate = 0;
             $lastCall = '';
+            setlocale(LC_TIME, 'fr_FR.utf8','fra');
             foreach ($incomingCalls as $call) {
-                $line = $call['number'] . ' : ' . $call['length'] . 's le ' . date("D j M H:i:s", $call['date']);
+                $line = $call['number'] . ' : ' . $call['length'] . 's le ' . strftime("%A %d %B à %k heures %M", $call['date']);
                 if ($lastDate < $call['date']) {
                     $lastDate = $call['date'];
-                    $lastCall = $line;
+                    $lastCall = strftime("%A %d %B à %k heures %M", $call['date']). ' du '.rtrim($call['number'],'X').' pendant '.($call['length']>60?round($call['length']/60) .' minutes':$call['length'].' secondes');
                 }
-                $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . date("D j M H:i:s", $call['date']) . "\n";
+                $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . strftime("%A %d %B à %k heures %M", $call['date']) . "\n";
             }
             
             $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCall');
@@ -801,6 +838,8 @@ class neufboxCmd extends cmd
                 $cmd->save();
                 $cmd->setCollectDate($lastDate);
                 $cmd->event($lastCall);
+                $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
+                $cmd->event(false);
             }
             
             log::add('neufbox', 'debug', 'appels entrants = ' . $value);
@@ -823,6 +862,15 @@ class neufboxCmd extends cmd
                 $cmd->setCollectDate('');
                 $cmd->event($value);
             }
+        }
+        
+        if ($this->getLogicalId() == 'setLastIncomingCallRead') {
+            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
+            $cmd->event(true);
+        }
+        if ($this->getLogicalId() == 'resetLastIncomingCallRead') {
+            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
+            $cmd->event(false);
         }
         // log::add('neufbox','debug','execute');
     }

@@ -45,7 +45,9 @@ class neufbox extends eqLogic
                         $eqLogic->refresh();
                     }
                 } catch (Exception $exc) {
-                    log::add('neufbox', 'error', __('Expression cron non valide pour ', __FILE__) . $eqLogic->getHumanName() . ' : ' . $autorefresh);
+                    if ($eqLogic->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
+                        log::add('neufbox', 'error', __('Expression cron non valide pour ', __FILE__) . $eqLogic->getHumanName() . ' : ' . $autorefresh);
+                    }
                 }
             }
         } catch (Exception $exc) {
@@ -111,6 +113,26 @@ class neufbox extends eqLogic
 		return json_encode($hosts);
     }
     
+    public static function queryWanStatusBox() {
+        log::add('neufbox','debug','* start queryWanStatusBox ***');
+        $ip = config::byKey('ipBox', 'neufbox');
+        $request = 'http://' . $ip . '/api/1.0/?method=wan.getInfo';
+        $request = new com_http($request);
+        $xmlstr = $request->exec(5, 1);
+        log::add('neufbox', 'debug', 'wan.getInfo = ' . $xmlstr);
+        $rsp = new SimpleXMLElement($xmlstr);
+        
+        /*
+        <?xml version="1.0" encoding="UTF-8"?>
+<rsp stat="ok" version="1.0">
+    <wan status="up" uptime="432792" ip_addr="77.133.215.232" infra="ftth" mode="ftth/routed" infra6="" status6="down" uptime6="" ipv6_addr="" />
+</rsp>
+*/
+        foreach ($rsp->children() as $wan) {
+            $status = $wan['status'];
+        }
+        return $status;
+    }
     
     private static function queryBox() {
         $result2 = neufbox::queryPhpBox();
@@ -165,7 +187,8 @@ class neufbox extends eqLogic
         /*$ip = config::byKey('ipBox', 'neufbox');
         $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
         $parsed_json = json_decode($json);
-        */$parsed_json = neufbox::queryBox();
+        */
+        $parsed_json = neufbox::queryBox();
         // $a=print_r($parsed_json,true);
         // log::add('neufbox','debug','******** equipements IP ******** '.$a);
         $count = 0;
@@ -275,7 +298,7 @@ class neufbox extends eqLogic
             $cmd->setType('action');
             $cmd->setSubType('other');
             $cmd->setEqLogic_id($this->getId());
-            $cmd->setConfiguration('request', 'refreshCallhistoryList');
+            $cmd->setConfiguration('request', 'voip.getCallhistoryList');
             $cmd->save();
             
             $cmd = $this->getCmd(null, 'incomingCallhistoryList');
@@ -348,6 +371,74 @@ class neufbox extends eqLogic
             $cmd->setType('action');
             $cmd->setSubType('other');
             $cmd->setEqLogic_id($this->getId());
+            $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'internetStatus');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('internetStatus');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('internetStatus', __FILE__));
+            $cmd->setType('info');
+            $cmd->setSubType('binary');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'reboot');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('reboot');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('reboot', __FILE__));
+            $cmd->setType('action');
+            $cmd->setSubType('other');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->setConfiguration('request', 'system.reboot');
+            $cmd->setConfiguration('post', true);
+            $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'voipRestart');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('voipRestart');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('voipRestart', __FILE__));
+            $cmd->setType('action');
+            $cmd->setSubType('other');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->setConfiguration('request', 'voip.restart');
+            $cmd->setConfiguration('post', true);
+            $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'ddnsDisable');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('ddnsDisable');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('ddnsDisable', __FILE__));
+            $cmd->setType('action');
+            $cmd->setSubType('other');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->setConfiguration('request', 'ddns.disable');
+            $cmd->setConfiguration('post', true);
+            $cmd->save();
+            
+            $cmd = $this->getCmd(null, 'ddnsEnable');
+            if (! is_object($cmd)) {
+                $cmd = new neufboxCmd();
+                $cmd->setLogicalId('ddnsEnable');
+                $cmd->setIsVisible(1);
+            }
+            $cmd->setName(__('ddnsEnable', __FILE__));
+            $cmd->setType('action');
+            $cmd->setSubType('other');
+            $cmd->setEqLogic_id($this->getId());
+            $cmd->setConfiguration('request', 'ddns.enable');
+            $cmd->setConfiguration('post', true);
             $cmd->save();
         } else {
             foreach (array(
@@ -477,7 +568,8 @@ class neufbox extends eqLogic
         /*$ip = config::byKey('ipBox', 'neufbox');
         $json = shell_exec(__DIR__ . '/../../ressources/apineufbox.py update ' . $ip); // Execute le script python et récupère le json
         $parsed_json = json_decode($json);
-        */$parsed_json = neufbox::queryBox();
+        */
+        $parsed_json = neufbox::queryBox();
         
         if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
             $cmd = $this->getCmd(null, 'refreshCallhistoryList');
@@ -487,6 +579,17 @@ class neufbox extends eqLogic
                 log::add('neufbox', 'warning', '** eqLogic name= ' . $this->getName() . ' has no cmd refreshCallhistoryList !');
             }
             $change = $this->refresh_all($parsed_json);
+            $status = (neufbox::queryWanStatusBox()=='up'?1:0);
+            $cmd = $this->getCmd(null, 'internetStatus');
+            if (is_object($cmd)) {
+                $value = $cmd->execCmd();
+            } else {
+                log::add('neufbox', 'warning', '** eqLogic name= ' . $this->getName() . ' has no cmd internetStatus !');
+            }
+            if ($value != $status) {
+                log::add('neufbox', 'info', '** eqLogic name= ' . $this->getName() . 'wan status changed ='.$status);
+                $cmd->event(($status));
+            }
         } else {
             $change = $this->refreshEqLogic($this,$parsed_json);
         }
@@ -502,6 +605,7 @@ class neufbox extends eqLogic
         }
         $_version = jeedom::versionAlias($_version);
         $id = $this->getId();
+        
         if ($_version != 'mobile') { // Version Dashboard
             $colorDark = 'color: rgb(0,0,0)';
             $body = null;
@@ -521,10 +625,57 @@ class neufbox extends eqLogic
                 $tdTheadHostname = '<th>Hostname</th>';
             }
             $thead = '<th>Nom</th><th>Status</th><th>Online</th><th>Offline</th>' . $tdTheadIp . $tdTheadMac . $tdTheadHostname;
+            if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
+                $cmd_id = $this->getID();
+                $name = $this->getName();
+                $status = $this->getCmd(null, 'internetStatus')->execCmd();
+                $ifaceIcon = '';
+                if ($status ) {
+                    $statusIcon = 'fa-check';
+                    $statusStyle = '';
+                } else {
+                    $statusIcon = 'fa-ban';
+                    $statusStyle = $colorDark;
+                }
+                //$divStatus = '<div class="history fa ' . $statusIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . $this->searchCmdByConfiguration('internetStatus', 'info')[0]->getId() . '" style="margin: 5px;' . $statusStyle . '"></div>';
+                $divStatus = '<div class="history fa ' . $statusIcon . ' fa-1" data-type="info" data-subtype="binary" data-cmd_id="' . "123456" . '" style="margin: 5px;' . $statusStyle . '"></div>';
+                $tdBodyStatus = '<td style="text-align: center;">' . $divStatus  . '</td>';
+                
+                $online = '';
+                $timer = '';
+                $offline = '';
+                $tdBodyIp = '';
+                $tdBodyMac = '';
+                $tdBodyHostname = '';
+                
+                $body = '<tr id="' . $cmd_id . '">
+                                  <td><span class="fa ' . $ifaceIcon . ' fa-1" style="margin-right: 5px;' . $statusStyle . ';"></span><span style="' . $statusStyle . ';">' . $name . '</span></td>
+                                  ' . $tdBodyStatus . '
+                                  <td><span style="' . $statusStyle . ';">' . $online . '</span><span style="font-size: 70%; margin: 2px; vertical-align: bottom;">' . $timer . '</span></td>
+                                  <td><span style="' . $statusStyle . ';">' . $offline . '</span></td>
+                                  ' . $tdBodyIp . '
+                                  ' . $tdBodyMac . '
+                                  ' . $tdBodyHostname . '
+                                  </tr>';
+                
+            }
+            
             $eqLogics = eqLogic::byType('neufbox');
             foreach ($eqLogics as $eqLogic) {
-                if ($eqLogic->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
-                    continue;
+                if ($this->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
+                    if ($eqLogic->getConfiguration('ip') == config::byKey('ipBox', 'neufbox')) {
+                        continue;
+                    }
+                } else {
+                    //continue;
+                    
+                    if ($eqLogic->getName() !== $this->getName()) continue;
+                    /*
+                    if (!isset($eqLogic->searchCmdByConfiguration('ip', 'info')[0])) continue;
+                    if ($eqLogic->searchCmdByConfiguration('ip', 'info')[0]->execCmd() != $this->getConfiguration('ip')) {
+                        continue;
+                    }
+                    */
                 }
                 
                 $cmd_id = $eqLogic->getID();
@@ -762,8 +913,9 @@ class neufboxCmd extends cmd
             return;
         }
         
-        if ($this->getLogicalId() == 'refreshCallhistoryList') {
-            // log::add('neufbox','debug','execute action call history');
+        //if ($this->getLogicalId() == 'refreshCallhistoryList') {
+        if ($this->getConfiguration('request') !== '') {
+            log::add('neufbox','debug','execute action call '.$this->getName());
             $ip = config::byKey('ipbox', 'neufbox');
             $request = 'http://' . $ip . '/api/1.0/?method=auth.getToken';
             $request = new com_http($request);
@@ -783,95 +935,120 @@ class neufboxCmd extends cmd
             
             log::add('neufbox', 'debug', 'check token = ' . $xmlstr);
             
-            $request = 'http://' . $ip . '/api/1.0/?method=voip.getCallhistoryList&token=' . $neufbox->auth['token'];
+            $request = 'http://' . $ip . '/api/1.0/?method='. $this->getConfiguration('request') .'&token=' . $neufbox->auth['token'];
             $request = new com_http($request);
+            if ($this->getConfiguration('post')) $request->setPost(true);
             $xmlstr = $request->exec(5, 1);
-            log::add('neufbox', 'debug', 'end refreshCallhistoryList = ' . $xmlstr);
+            log::add('neufbox', 'debug', 'end '.$this->getName() .' = ' . $xmlstr);
+            
             $rsp = new SimpleXMLElement($xmlstr);
-            $i = 0;
-            /*
-             * setlocale(LC_TIME, "fr_FR");
-             * date_default_timezone_set('Europe/Paris');
-             * // --- La setlocale() fonctionnne pour strftime mais pas pour DateTime->format()
-             * setlocale(LC_TIME, 'fr_FR.utf8','fra');// OK
-             * // strftime("jourEnLettres jour moisEnLettres annee") de la date courante
-             * log::add('neufbox','debug','Date du jour : ', strftime("%A %d %B %Y"));
-             */
-            $incomingCalls = array();
-            $outgoingCalls = array();
-            foreach ($rsp->{'calls'}->children() as $call) {
-                // log::add('neufbox','debug','appel = '.$call['direction'].' - '.$call['number'].' - '.$call['length'].' - '.date("D j M h:i:s",(int)$call['date']));
-                if ($call['direction'] == 'incoming') {
-                    $incomingCalls[] = array(
-                        'number' => $call['number'],
-                        'length' => $call['length'],
-                        'date' => (int) $call['date']
-                    );
-                } else {
-                    $outgoingCalls[] = array(
-                        'number' => $call['number'],
-                        'length' => $call['length'],
-                        'date' => (int) $call['date']
-                    );
-                }
-                $i ++;
-            }
-            // log::add('neufbox','debug','nbr d\appels = '.$i);
-            // <call type="voip" direction="incoming" number="024054 XXXX" length="259" date="1508519150" />
-            $value = "";
+            if ($rsp['stat'] != 'ok') {
+                /*
+                 * <rsp stat="fail" version="1.0">   <err code="112" msg="Method not found" /> </rsp>
+                 */
             
-            $lastDate = 0;
-            $lastCall = '';
-            setlocale(LC_TIME, 'fr_FR.utf8','fra');
-            foreach ($incomingCalls as $call) {
-                $line = $call['number'] . ' : ' . $call['length'] . 's le ' . strftime("%A %d %B à %k heures %M", $call['date']);
-                if ($lastDate < $call['date']) {
-                    $lastDate = $call['date'];
-                    $lastCall = strftime("%A %d %B à %k heures %M", $call['date']). ' du '.rtrim($call['number'],'X').' pendant '.($call['length']>60?round($call['length']/60) .' minutes':$call['length'].' secondes');
-                }
-                $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . strftime("%A %d %B à %k heures %M", $call['date']) . "\n";
-            }
+                log::add('neufbox', 'error', 'request  '.$this->getName() . ' rsp = '. $rsp['stat'] . ' error code = ' . $rsp->{'err'}['code'] .' error msg = ' . $rsp->{'err'}['msg'].' txt=' . $xmlstr);
+            } else {
+                switch ($this->getName()) {
+                    case  'refreshCallhistoryList' :
+                        $i = 0;
+                        /*
+                         * setlocale(LC_TIME, "fr_FR");
+                         * date_default_timezone_set('Europe/Paris');
+                         * // --- La setlocale() fonctionnne pour strftime mais pas pour DateTime->format()
+                         * setlocale(LC_TIME, 'fr_FR.utf8','fra');// OK
+                         * // strftime("jourEnLettres jour moisEnLettres annee") de la date courante
+                         * log::add('neufbox','debug','Date du jour : ', strftime("%A %d %B %Y"));
+                         */
+                        $incomingCalls = array();
+                        $outgoingCalls = array();
+                        foreach ($rsp->{'calls'}->children() as $call) {
+                            // log::add('neufbox','debug','appel = '.$call['direction'].' - '.$call['number'].' - '.$call['length'].' - '.date("D j M h:i:s",(int)$call['date']));
+                            if ($call['direction'] == 'incoming') {
+                                $incomingCalls[] = array(
+                                    'number' => $call['number'],
+                                    'length' => $call['length'],
+                                    'date' => (int) $call['date']
+                                );
+                            } else {
+                                $outgoingCalls[] = array(
+                                    'number' => $call['number'],
+                                    'length' => $call['length'],
+                                    'date' => (int) $call['date']
+                                );
+                            }
+                            $i ++;
+                        }
+                        
+                        // log::add('neufbox','debug','nbr d\appels = '.$i);
+                        // <call type="voip" direction="incoming" number="024054 XXXX" length="259" date="1508519150" />
+                        $value = "";
+                        
+                        $lastDate = 0;
+                        $lastCall = '';
+                        setlocale(LC_TIME, 'fr_FR.utf8','fra');
+                        foreach ($incomingCalls as $call) {
+                            $line = $call['number'] . ' : ' . $call['length'] . 's le ' . strftime("%A %d %B à %k heures %M", $call['date']);
+                            if ($lastDate < $call['date']) {
+                                $lastDate = $call['date'];
+                                $lastCall = strftime("%A %d %B à %k heures %M", $call['date']). ' du '.rtrim($call['number'],'X').' pendant '.($call['length']>60?round($call['length']/60) .' minutes':$call['length'].' secondes');
+                            }
+                            $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . strftime("%A %d %B à %k heures %M", $call['date']) . "\n";
+                        }
+                        
+                        $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCall');
+                        if ($cmd->getValue() != $lastCall) {
+                            $cmd->setValue($lastCall);
+                            $cmd->save();
+                            $cmd->setCollectDate($lastDate);
+                            $cmd->event($lastCall);
+                            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
+                            $cmd->event(false);
+                        }
+                        
+                        log::add('neufbox', 'debug', 'appels entrants = ' . $value);
+                        $cmd = $this->getEqLogic()->getCmd('info', 'incomingCallhistoryList');
+                        if ($cmd->getValue() != $value) {
+                            $cmd->setValue($value);
+                            $cmd->save();
+                            $cmd->setCollectDate('');
+                            $cmd->event($value);
+                        }
+                        $value = "";
+                        foreach ($outgoingCalls as $call) {
+                            $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . date("D j M H:i:s", $call['date']) . "\n";
+                        }
+                        log::add('neufbox', 'debug', 'appels sortants = ' . $value);
+                        $cmd = $this->getEqLogic()->getCmd('info', 'outgoingCallhistoryList');
+                        if ($cmd->getValue() != $value) {
+                            $cmd->setValue($value);
+                            $cmd->save();
+                            $cmd->setCollectDate('');
+                            $cmd->event($value);
+                        }
+                
+                        if ($this->getLogicalId() == 'setLastIncomingCallRead') {
+                            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
+                            $cmd->event(true);
+                        }
+                        if ($this->getLogicalId() == 'resetLastIncomingCallRead') {
+                            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
+                            $cmd->event(false);
+                        }
+                        
+                        break;
+                    case 'reboot' :
+                        log::add('neufbox', 'debug', 'ici '.$this->getName() .' = ' . $xmlstr);
+                        break;
+                    default :
+                        log::add('neufbox', 'debug', 'la '.$this->getName() .' = ' . $xmlstr);
+                        
+                        
+                }//end switch
+            }//end if ($rsp['stat'] == 'fail') {
+        }//end if ($this->getConfiguration('request') !== '') {
             
-            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCall');
-            if ($cmd->getValue() != $lastCall) {
-                $cmd->setValue($lastCall);
-                $cmd->save();
-                $cmd->setCollectDate($lastDate);
-                $cmd->event($lastCall);
-                $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
-                $cmd->event(false);
-            }
             
-            log::add('neufbox', 'debug', 'appels entrants = ' . $value);
-            $cmd = $this->getEqLogic()->getCmd('info', 'incomingCallhistoryList');
-            if ($cmd->getValue() != $value) {
-                $cmd->setValue($value);
-                $cmd->save();
-                $cmd->setCollectDate('');
-                $cmd->event($value);
-            }
-            $value = "";
-            foreach ($outgoingCalls as $call) {
-                $value .= $call['number'] . ' : ' . $call['length'] . 's le ' . date("D j M H:i:s", $call['date']) . "\n";
-            }
-            log::add('neufbox', 'debug', 'appels sortants = ' . $value);
-            $cmd = $this->getEqLogic()->getCmd('info', 'outgoingCallhistoryList');
-            if ($cmd->getValue() != $value) {
-                $cmd->setValue($value);
-                $cmd->save();
-                $cmd->setCollectDate('');
-                $cmd->event($value);
-            }
-        }
-        
-        if ($this->getLogicalId() == 'setLastIncomingCallRead') {
-            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
-            $cmd->event(true);
-        }
-        if ($this->getLogicalId() == 'resetLastIncomingCallRead') {
-            $cmd = $this->getEqLogic()->getCmd('info', 'lastIncomingCallRead');
-            $cmd->event(false);
-        }
         // log::add('neufbox','debug','execute');
     }
     

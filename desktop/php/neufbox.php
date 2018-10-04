@@ -5,19 +5,7 @@ if (! isConnect('admin')) {
 sendVarToJS('eqType', 'neufbox');
 $eqLogics = eqLogic::byType('neufbox');
 if (empty($eqLogics)) {
-    $eqLogic = new neufbox();
-    
-    $eqLogic->setLogicalId(config::byKey('macBox', 'neufbox'));
-    $eqLogic->setName(config::byKey('nameBox', 'neufbox'));
-    $eqLogic->setEqType_name('neufbox');
-    $eqLogic->setConfiguration('name', config::byKey('nameBox', 'neufbox'));
-    $eqLogic->setConfiguration('ip', config::byKey('ipBox', 'neufbox'));
-    $eqLogic->setConfiguration('mac', config::byKey('macBox', 'neufbox'));
-    $eqLogic->setConfiguration('type', 'box');
-    $eqLogic->setIsVisible(1);
-    $eqLogic->setIsEnable(1);
-    $eqLogic->save();
-    $eqLogics[] = $eqLogic;
+    $eqLogics[] = neufbox::createBox();
 }
 ?>
 <div class="row row-overflow">

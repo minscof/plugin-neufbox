@@ -52,13 +52,20 @@ try {
         //box (192.168.0.1) at 44:ce:7d:15:75:98 [ether] on eth0
         foreach($lines as $line)
         {
-            $cols=preg_split('/\s+/', trim($line));
-            if ($cols[1]=='('.$ipAddress.')')
-            {
+            //$cols=preg_split('/\s+/', trim($line));
+            $cols=explode(' ', trim($line));
+            if ($cols[1]=='('.$ipAddress.')') {
                 $macAddr=$cols[3];
                 $name=($cols[0]?$cols[0]:'mybox');
+            } else {
+                log::add('neufbox', 'debug', 'neufbox.ajax.php ip addr not found in arp request = : '.$line);
             }
         }
+        if (empty($name)) {
+            log::add('neufbox', 'debug', 'neufbox.ajax.php name of box not found forced mybox');
+            $name = 'mybox';
+        }
+        config::save('nameBox', $name,'neufbox');
         if ($macAddr) {
             config::save('macBox', $macAddr,'neufbox');
             config::save('nameBox', $name,'neufbox');
@@ -66,8 +73,7 @@ try {
         } else {
             ajax::error();
         }
-    }
-    
+    }   
     
     if (init('action') == 'removeAll') {
         $return = neufbox::removeAll();

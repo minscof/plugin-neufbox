@@ -567,7 +567,7 @@ class neufbox extends eqLogic
         $mac = $eqLogic->getConfiguration('mac');
         // log::add('neufbox', 'debug', __('refresh equipment neufbox start '.$mac, __FILE__));
         if (! isset($parsed_json->{$mac})) {
-            log::add('neufbox', 'warning', '** eqLogic name= ' . $eqLogic->getName() . ' refresh failed mac not found in json stream ! ' . $mac);
+            log::add('neufbox', 'info', '** eqLogic name= ' . $eqLogic->getName() . ' refresh failed mac not found in json stream ! ' . $mac);
             foreach ($eqLogic->getCmd('info') as $cmd) {
                 // TODO
                 continue;
